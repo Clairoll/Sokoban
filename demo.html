@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>推箱子</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+    }
+
+    #warp {
+      margin: 0px auto;
+      background: url(img/block.jpg);
+      position: relative;
+    }
+
+    #warp div {
+      width: 35px;
+      height: 35px;
+      position: absolute;
+      transition: 0.2s;
+    }
+
+    #warp div img {
+      position: absolute;
+      bottom: 0;
+    }
+
+    #warp .ball img {
+      bottom: 50%;
+      left: 50%;
+      margin-bottom: -15px;
+      margin-left: -15px;
+    }
+
+    #warp .box img {
+      z-index: 1;
+    }
+
+    #warp .person img {
+      left: 50%;
+      margin-left: -25px;
+      z-index: 2;
+    }
+
+    #btn{
+      margin-top: 50px;
+      width: 560px;
+      position: relative;
+      left: 50%;
+      margin-left: -280px;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="btn">
+    <input type="button" id="auto" value="自动行走">
+    <input type="button" id="prev" value="上一步">
+    <input type="button" id="nextLever" value="下一关">
+    <input type="button" id="lastLever" value="上一关">
+  </div>
+  <div id="warp"></div>
+</body>
+<script>
+  window.onload = function () {
+    Game.exe();
+  };
+  var Game = {
+    // 获取盒子元素
+    oWarp: document.getElementById('warp'),
+    // 执行函数
+    exe: function () {
+      Game.oWarp.style.cssText = 'width:' + this.size.x * 35 + 'px;height:' + this.size.y * 35 + 'px';
+      document.getElementById('prev').onclick = this.prev;
+      document.getElementById('nextLever').onclick = this.nextLever;
+      document.getElementById('lastLever').onclick = this.lastLever;
+      document.getElementById('auto').onclick = this.auto;
+      Game.creatMap(Game.lever);
+    },
+    // 起始关卡
+    lever: 0,
+    // 步骤次数统计
+    stepNum: 0,
+    // 地图大小
+    size: { x: 16, y: 16 },
+    // 创建地图
+    creatMap: function (lv) {
+      // warp的大小
+      var oPerson, oDiv, oImg;;
+      // 清空上一关的地图数据
+      this.oWarp.innerHTML = '';
+      // 清空上一关的步骤存储数据
+      this.step.person = [];
+      this.step.box = [];
+      this.stepNum = 0;
+      // 创建16*16个格子
+      for (var i = 0; i < this.size.x * this.size.y; i++) {
+        // 摆放背景图
+        switch (this.mapData[lv][i]) {
+          case 1: // 放置草地
+            addDiv.call(this, i);
+            oImg.src = 'img/wall.png';
+            oDiv.className = 'wall';
+            break;
+          case 2: // 放置树
+            addDiv.call(this, i);
+            oImg.src = 'img/ball.png';
+            oDiv.className = 'ball';
+            oDiv.style.zIndex = 0;
+            break;
+          case 3: // 放置箱子
+            addDiv.call(this, i);
+            oImg.src = 'img/box.jpg';
+            oDiv.className = 'box';
+            break;
+          case 4: // 放置人物
+            addDiv.call(this, i);
+            oImg.src = 'img/down.png';
+            oDiv.className = 'person';
+            oPerson = oImg;
+            break;
+        }
+      }
+      this.controlPerson(oPerson);
+      // 追加盒子(div)
+      function addDiv(i) {
+        var x = i % this.size.x; // 盒子的横坐标
+        var y = parseInt(i / this.size.x); //盒子的纵坐标
+        oDiv = document.createElement('div');
+        oDiv.x = x;
+        oDiv.y = y;
+        oDiv.style.cssText = 'left:' + x * 35 + 'px;top:' + y * 35 + 'px;z-index:' + (y * this.size.y) + ';'; // 摆放div盒子,并设置层级(越靠下越高)
+        oImg = new Image();
+        oDiv.appendChild(oImg);
+        this.oWarp.appendChild(oDiv);
+      }
+    },
+    // 控制人物
+    controlPerson: function (oP) {
+      var _this = this;
+      var oParent = oP.parentNode;
+      document.onkeydown = function (ev) {
+        ev = ev || window.event;
+        var keyCode = ev.keyCode;
+        _this.controlFn(oP,oParent, keyCode);
+        switch(keyCode){
+          case 37:
+          case 38:
+          case 39:
+          case 40:
+            return false;
+            break;
+          default:
+            break;
+        }
+      }
+    },
+    // 控制函数
+    controlFn: function (oP,oParent, keyCode) {
+      var _this = Game;
+      _this.step.person[_this.stepNum] = {};
+      _this.step.person[_this.stepNum].src = oParent.children[0].src;
+      switch (keyCode) {
+        case 37:
+          oP.src = 'img/right.png';
+          _this.movePerson({ x: -1 }, oParent);
+          break;
+        case 38:
+          oP.src = 'img/up.png';
+          _this.movePerson({ y: -1 }, oParent);
+          break;
+        case 39:
+          oP.src = 'img/left.png';
+          _this.movePerson({ x: 1 }, oParent);
+          break;
+        case 40:
+          oP.src = 'img/down.png';
+          _this.movePerson({ y: 1 }, oParent);
+          break;
+      }
+    },
+    // 人物移动
+    movePerson: function (myJson, oParent) {
+      var x = myJson.x || 0;
+      var y = myJson.y || 0;
+      var oBox = this.getClass('box', this.oWarp);
+      // 判断人物是否撞树
+      if (this.mapData[this.lever][(oParent.x + x) + (oParent.y + y) * this.size.x] != 1) {
+        // 存储人物移动前的坐标   
+        this.step.person[this.stepNum].x = oParent.x;
+        this.step.person[this.stepNum].y = oParent.y;
+        // 人物移动并且修改人物移动后的坐标
+        oParent.x += x;
+        oParent.y += y;
+        oParent.style.left = oParent.x * 35 + 'px';
+        oParent.style.top = oParent.y * 35 + 'px';
+        oParent.style.zIndex = oParent.x + oParent.y * this.size.x;
+        // 步骤加一
+        this.stepNum++;
+
+        // 循环获取所有的箱子
+        for (var i = 0; i < oBox.length; i++) {
+          // 判断人物与箱子是否撞上
+          if (oBox[i].x == oParent.x && oBox[i].y == oParent.y) {
+            // 判断箱子与树是否撞上
+            if (this.mapData[this.lever][(oBox[i].x + x) + (oBox[i].y + y) * this.size.x] != 1) {
+              // 判断箱子与箱子是否撞上
+              if (this.collision(oBox[i], x, y)) { // 没有撞上
+                this.step.box[this.stepNum - 1] = {};
+                // 存储当前动的是第几个箱子
+                this.step.box[this.stepNum - 1].index = i;
+                // 存储箱子移动前的坐标
+                this.step.box[this.stepNum - 1].x = oBox[i].x;
+                this.step.box[this.stepNum - 1].y = oBox[i].y;
+                // 箱子移动并且修改箱子移动后的坐标
+                oBox[i].x += x;
+                oBox[i].y += y;
+                oBox[i].style.left = oBox[i].x * 35 + 'px';
+                oBox[i].style.top = oBox[i].y * 35 + 'px';
+                oBox[i].style.zIndex = oBox[i].y * this.size.x;
+                this.pass();
+              } else { // 撞上了
+                // 人物后退并且修改人物后退后的坐标
+                oParent.x -= x;
+                oParent.y -= y;
+                oParent.style.left = oParent.x * 35 + 'px';
+                oParent.style.top = oParent.y * 35 + 'px';
+                oParent.style.zIndex = oParent.x + oParent.y * this.size.x;
+                // 执行这一步说明人物反弹回来了，即人物没有移动，所以步骤需要减一，并且去除数组中的最后一条数据
+                this.stepNum--;
+                this.step.person.pop();
+              }
+            } else { // 箱子与树撞上之后人物必须立即后退一格，才能避免人物踩到箱子上
+              // 人物后退并且修改人物后退后的坐标
+              oParent.x -= x;
+              oParent.y -= y;
+              oParent.style.left = oParent.x * 35 + 'px';
+              oParent.style.top = oParent.y * 35 + 'px';
+              oParent.style.zIndex = oParent.x + oParent.y * this.size.x;
+              // 执行这一步说明人物反弹回来了，即人物没有移动，所以步骤需要减一，并且去除数组中的最后一条数据
+              this.stepNum--;
+              this.step.person.pop();
+            }
+          }
+        }
+      }
+    },
+    // 箱子与箱子的碰撞
+    collision: function (obj, x, y) {
+      var oBox = this.getClass('box', this.oWarp);
+      // 获取所有的箱子元素
+      for (var i = 0; i < oBox.length; i++) {
+        // 判断除当前箱子以外的箱子
+        if (oBox[i] != obj) {
+          if ((oBox[i].x == obj.x + x) && (oBox[i].y == obj.y + y)) {
+            return false;
+          }
+        }
+      }
+      return true;
+    },
+    // 过关检测
+    pass: function () {
+      var oBall = this.getClass('ball', this.oWarp); // 获取所有的小球
+      var oBox = this.getClass('box', this.oWarp); // 获取所有的箱子
+      var passNum = 0; // 定义一个数字，用于计算小球和箱子重合的数量
+      for (var i = 0; i < oBall.length; i++) {
+        for (var j = 0; j < oBox.length; j++) {
+          // 判断小球的横纵坐标与箱子的横纵坐标是否相等
+          if (oBall[i].x == oBox[j].x && oBall[i].y == oBox[j].y) {
+            passNum++;
+          }
+        }
+      }
+      if (passNum == oBall.length) {
+        alert('恭喜过关');
+        this.lever++; // 进入下一关
+        Game.creatMap(Game.lever);
+      }
+    },
+    // 移动步骤存储
+    step: {
+      // 人物
+      person: [],
+      // 箱子
+      box: []
+    },
+    // 返回上一步
+    prev: function () {
+      var _this = Game;
+      var oPerson = _this.getClass('person', _this.oWarp)[0];
+      var oBox = _this.getClass('box', _this.oWarp);
+      var oBoxNow;
+      if (_this.stepNum != 0) {
+        oPerson.x = _this.step.person[_this.stepNum - 1].x;
+        oPerson.y = _this.step.person[_this.stepNum - 1].y;
+        oPerson.style.left = oPerson.x * 35 + 'px';
+        oPerson.style.top = oPerson.y * 35 + 'px';
+        oPerson.style.zIndex = oPerson.x + oPerson.y * _this.size.x;
+        oPerson.children[0].src = _this.step.person[_this.stepNum - 1].src;
+
+        if (_this.step.box[_this.stepNum - 1]) {
+          oBoxNow = oBox[_this.step.box[_this.stepNum - 1].index];
+          oBoxNow.x = _this.step.box[_this.stepNum - 1].x;
+          oBoxNow.y = _this.step.box[_this.stepNum - 1].y;
+          oBoxNow.style.left = oBoxNow.x * 35 + 'px';
+          oBoxNow.style.top = oBoxNow.y * 35 + 'px';
+          oBoxNow.style.zIndex = oBoxNow.y * _this.size.x;
+        }
+        _this.stepNum--;
+      }
+
+    },
+    // 下一关
+    nextLever: function () {
+      var _this = Game;
+      if (_this.lever < _this.mapData.length) {
+        _this.lever++;
+      }
+      _this.creatMap(_this.lever);
+    },
+    // 上一关
+    lastLever: function () {
+      var _this = Game;
+      if (_this.lever > 0) {
+        _this.lever--;
+      }
+      _this.creatMap(_this.lever);
+    },
+    // 自动行走
+    auto:function(){
+      var _this= Game;
+      // 先清空用户行走的路径，即恢复到初始状态
+      _this.creatMap(_this.lever);
+      var oParent = _this.getClass('person')[0];
+      var oP = oParent.children[0];
+      var kNum = 0;
+      var timer=setInterval(function(){
+        keyCode = _this.automatic[_this.lever][kNum];
+        _this.controlFn(oP,oParent, keyCode);
+        kNum++;
+        if(kNum == _this.automatic[_this.lever].length){
+          clearInterval(timer);
+        }
+      },500);
+    },
+    // 自动过关数据
+    automatic:[
+      // 第一关
+      [40, 38, 37, 37, 39, 38, 38, 40, 39, 39],
+      // 第二关
+      [],
+      // 第三关
+      [],
+      // 第四关
+      [],
+    ],
+    // 关卡数据 
+    mapData: [
+      // 第一关
+      [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 1, 1, 3, 0, 3, 2, 1, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 2, 0, 3, 4, 1, 1, 1, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 1, 1, 1, 3, 1, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 1, 2, 1, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ],
+      // 第二关
+      [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 4, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 0, 3, 3, 1, 0, 1, 1, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 0, 3, 0, 1, 0, 1, 2, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 2, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 2, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+      ],
+      // 第三关
+      [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 2, 0, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 1, 0, 0, 3, 2, 2, 2, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 0, 0, 3, 0, 1, 3, 2, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 0, 1, 1, 3, 1, 0, 1, 1, 0, 0, 0,
+        0, 0, 0, 1, 0, 0, 0, 3, 0, 0, 0, 0, 1, 0, 0, 0,
+        0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0,
+        0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 4, 0, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      ],
+      // 第四关
+      [
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0,
+        0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 4, 1, 1, 0, 0, 0,
+        0, 0, 0, 0, 1, 2, 2, 2, 2, 1, 3, 0, 1, 1, 0, 0,
+        0, 0, 0, 0, 1, 2, 2, 2, 2, 1, 0, 3, 0, 1, 0, 0,
+        0, 0, 0, 0, 1, 2, 2, 2, 2, 0, 3, 0, 0, 1, 0, 0,
+        0, 0, 0, 0, 1, 0, 2, 2, 2, 1, 0, 0, 0, 1, 0, 0,
+        1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0,
+        1, 0, 3, 0, 3, 0, 0, 0, 3, 0, 0, 0, 0, 0, 1, 0,
+        1, 0, 0, 0, 0, 3, 3, 0, 0, 0, 3, 0, 3, 0, 1, 0,
+        1, 1, 1, 0, 3, 0, 3, 0, 3, 0, 0, 1, 1, 1, 1, 0,
+        0, 0, 1, 1, 0, 0, 0, 3, 0, 3, 0, 1, 0, 0, 0, 0,
+        0, 0, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0,
+        0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      ]
+    ],
+    // 扩展方法——获取类名的兼容写法
+    getClass: function (cName, obj) {
+      obj = obj || document;
+      if (obj.getElementsByClassName) {
+        return obj.getElementsByClassName(cName);
+      } else {
+        var arr = [];
+        var allE = obj.getElementsByTagName('*');
+        for (var i = 0; i < allE.length; i++) {
+          var allEArr = allE[i].className.split(' ');
+          for (var j = 0; j < allEArr.lenght; j++) {
+            if (allEArr[j] == cName) {
+              arr.push(allE[i]);
+              break;
+            }
+          }
+        }
+        return arr;
+      }
+    }
+  };
+</script>
+
+</html>
